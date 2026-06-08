@@ -26,11 +26,11 @@
     - trove_mgmt_network
     - trove_pre_install
 
-- name: Create Trove guest VM security group rules
-  import_tasks: trove_guest_vm_security_group_rules.yml
-  tags:
-    - trove_guest_vm_security_group_rules
-    - trove_pre_install
+#- name: Create Trove guest VM security group rules
+#  import_tasks: trove_guest_vm_security_group_rules.yml
+#  tags:
+#    - trove_guest_vm_security_group_rules
+#    - trove_pre_install
 
 - name: Create Trove security groups
   import_tasks: trove_security_groups.yml

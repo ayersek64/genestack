@@ -1648,37 +1648,45 @@ function setupKubeConfig() {
 }
 
 function deployTrove() {
-    echo "Running trove deployment ..."
+    echo "Running Trove deployment ..."
 
-    local ssh_user="$1"
-    local jump_host="$2"
-    local lab_name_prefix="$3"
-    local compute_subnet_cidr="$4"
-    local mgmt_subnet_cidr="$5"
+    local trove_region_name=$1
+    local public_provider_net_name=$2
+#    local ssh_user="$1"
+#    local jump_host="$2"
+#    local lab_name_prefix="$3"
+#    local compute_subnet_cidr="$4"
+#    local mgmt_subnet_cidr="$5"
 
-    # Trove guest VM connectivity — scoped to internal networks only (not public).
-    # RabbitMQ (5672) and Keystone (5000) are on the MetalLB shared VIP.
-    # Two rules per port: flat network (source) and mgmt network (SNAT).
-    if ! openstack security group show ${lab_name_prefix}-http-secgroup -f json 2>/dev/null | jq -r '.rules[].port_range_max' | grep -q 5672; then
-        openstack security group rule create ${lab_name_prefix}-http-secgroup \
-            --protocol tcp --ingress --dst-port 5672 \
-            --remote-ip ${compute_subnet_cidr:-192.168.102.0/24} \
-            --description "RabbitMQ for Trove guest VMs (flat network)"
-        openstack security group rule create ${lab_name_prefix}-http-secgroup \
-            --protocol tcp --ingress --dst-port 5672 \
-            --remote-ip ${mgmt_subnet_cidr:-192.168.100.0/24} \
-            --description "RabbitMQ for Trove guest VMs (mgmt network / SNAT)"
-    fi
-    if ! openstack security group show ${lab_name_prefix}-http-secgroup -f json 2>/dev/null | jq -r '.rules[].port_range_max' | grep -q 5000; then
-        openstack security group rule create ${lab_name_prefix}-http-secgroup \
-            --protocol tcp --ingress --dst-port 5000 \
-            --remote-ip ${compute_subnet_cidr:-192.168.102.0/24} \
-            --description "Keystone for Trove guest VMs (flat network)"
-        openstack security group rule create ${lab_name_prefix}-http-secgroup \
-            --protocol tcp --ingress --dst-port 5000 \
-            --remote-ip ${mgmt_subnet_cidr:-192.168.100.0/24} \
-            --description "Keystone for Trove guest VMs (mgmt network / SNAT)"
-    fi
+#    if openstack security group show trove-mgmt-svc-secgroup 2>/dev/null; then
+#        openstack security group delete trove-mgmt-svc-secgroup
+#    fi
+#
+#    openstack security group create trove-mgmt-svc-secgroup
+#
+#    # Trove guest VM connectivity — scoped to internal networks only (not public).
+#    # RabbitMQ (5672) and Keystone (5000) are on the MetalLB shared VIP.
+#    # Two rules per port: flat network (source) and mgmt network (SNAT).
+#    openstack security group rule create trove-mgmt-svc-secgroup \
+#        --protocol tcp --ingress --dst-port 5672 \
+#        --remote-ip ${compute_subnet_cidr:-192.168.102.0/24} \
+#        --description "RabbitMQ for Trove guest VMs (flat network)"
+#    openstack security group rule create trove-mgmt-svc-secgroup \
+#        --protocol tcp --ingress --dst-port 5672 \
+#        --remote-ip ${mgmt_subnet_cidr:-192.168.100.0/24} \
+#        --description "RabbitMQ for Trove guest VMs (mgmt network / SNAT)"
+#    openstack security group rule create trove-mgmt-svc-secgroup \
+#        --protocol tcp --ingress --dst-port 5000 \
+#        --remote-ip ${compute_subnet_cidr:-192.168.102.0/24} \
+#        --description "Keystone for Trove guest VMs (flat network)"
+#    openstack security group rule create trove-mgmt-svc-secgroup \
+#        --protocol tcp --ingress --dst-port 5000 \
+#        --remote-ip ${mgmt_subnet_cidr:-192.168.100.0/24} \
+#        --description "Keystone for Trove guest VMs (mgmt network / SNAT)"
+#
+#    openstack port set --security-group trove-mgmt-svc-secgroup ${lab_name_prefix}-0-mgmt-port
+#    openstack port set --security-group trove-mgmt-svc-secgroup ${lab_name_prefix}-1-mgmt-port
+#    openstack port set --security-group trove-mgmt-svc-secgroup ${lab_name_prefix}-2-mgmt-port
 
     {
         declare -f setupKubeConfig
@@ -1698,10 +1706,12 @@ setupKubeConfig
 
 echo "Running playbook for trove_secrets"
 ansible-playbook /opt/genestack/ansible/playbooks/trove-enablement-techpreview.yaml \
-    --tags trove_secrets
+    --tags trove_secrets \
+    -e "trove_region_name=${trove_region_name}"
 echo "Running playbook for trove_mgmt_network"
 ansible-playbook /opt/genestack/ansible/playbooks/trove-enablement-techpreview.yaml \
-    --tags trove_mgmt_network
+    --tags trove_mgmt_network \
+    -e "trove_region_name=${trove_region_name} trove_mgmt_public_network_name=${public_provider_net_name}"
 #echo "Running playbook for trove_guest_vm_security_group_rules ${LAB_NAME_PREFIX}"
 #ansible-playbook /opt/genestack/ansible/playbooks/trove-enablement-techpreview.yaml \
 #    --tags trove_guest_vm_security_group_rules \
@@ -1710,32 +1720,40 @@ ansible-playbook /opt/genestack/ansible/playbooks/trove-enablement-techpreview.y
 #    -e mgmt_subnet_cidr=${MGMT_SUBNET_CIDR:-192.168.100.0/24}
 echo "Running playbook for trove_security_groups"
 ansible-playbook /opt/genestack/ansible/playbooks/trove-enablement-techpreview.yaml \
-    --tags trove_security_groups
+    --tags trove_security_groups \
+    -e "trove_region_name=${trove_region_name}"
 echo "Running playbook for trove_helm_config"
 ansible-playbook /opt/genestack/ansible/playbooks/trove-enablement-techpreview.yaml \
-    --tags trove_helm_config
+    --tags trove_helm_config \
+    -e "trove_region_name=${trove_region_name}"
 echo "Running playbook for trove_gateway"
 ansible-playbook /opt/genestack/ansible/playbooks/trove-enablement-techpreview.yaml \
-    --tags trove_gateway
+    --tags trove_gateway \
+    -e "trove_region_name=${trove_region_name}"
 
 echo "Installing Trove via Helm chart"
 sudo /opt/genestack/bin/install-trove.sh
 
 echo "Running playbook for trove_image_build"
 ansible-playbook /opt/genestack/ansible/playbooks/trove-enablement-techpreview.yaml \
-    --tags trove_image_build
+    --tags trove_image_build \
+    -e "trove_region_name=${trove_region_name}"
 echo "Running playbook for trove_datastore"
 ansible-playbook /opt/genestack/ansible/playbooks/trove-enablement-techpreview.yaml \
-    --tags trove_datastore
+    --tags trove_datastore \
+    -e "trove_region_name=${trove_region_name}"
 echo "Running playbook for trove_client"
 ansible-playbook /opt/genestack/ansible/playbooks/trove-enablement-techpreview.yaml \
-    --tags trove_client
+    --tags trove_client \
+    -e "trove_region_name=${trove_region_name}"
 echo "Running playbook for trove_keypair"
 ansible-playbook /opt/genestack/ansible/playbooks/trove-enablement-techpreview.yaml \
-    --tags trove_keypair
+    --tags trove_keypair \
+    -e "trove_region_name=${trove_region_name}"
 echo "Running playbook for trove_ssh_key_distribute"
 ansible-playbook /opt/genestack/ansible/playbooks/trove-enablement-techpreview.yaml \
-    --tags trove_ssh_key_distribute
+    --tags trove_ssh_key_distribute \
+    -e "trove_region_name=${trove_region_name}"
 JUMP_HOST_EOF
     } | _ssh bash
 }

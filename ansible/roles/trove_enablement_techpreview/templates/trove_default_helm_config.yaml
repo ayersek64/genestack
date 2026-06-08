@@ -1,5 +1,5 @@
 ---
-_region: &region RegionOne
+_region: &region {{ trove_region_name }}
 
 endpoints:
   identity:

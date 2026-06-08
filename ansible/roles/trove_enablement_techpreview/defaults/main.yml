@@ -44,7 +44,7 @@ trove_datastore_packages: "mysql-server"
 trove_keypair_name: trove-access-keypair
 trove_secgroup_name: trove-access-secgroup
 trove_secgroup_remote_ip: "0.0.0.0/0"
-trove_flat_network_name: flat
+trove_mgmt_public_network_name: flat
 trove_mgmt_network_name: trove-mgmt-net
 trove_mgmt_subnet_name: trove-mgmt-subnet
 trove_services_secgroup_name: trove-services-secgroup
